@@ -48,9 +48,7 @@ def dijkstra(grid, corner, target):
                     for item in set(items).intersection(set(new_items)):
                         graph.add_edge((x, y, item), (new_x, new_y, item), weight=1)
 
-    return min([
-        nx.dijkstra_path_length(graph, (0, 0, torch), (target[0], target[1], item)) for item in valid_items[grid[target]]
-    ])
+    return nx.dijkstra_path_length(graph, (0, 0, torch), (target[0], target[1], torch))
 
 
 depth, target = get_cave("./input.txt")
