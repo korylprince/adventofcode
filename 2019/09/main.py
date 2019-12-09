@@ -31,14 +31,16 @@ def run(codes, inq, outq):
             return codes[i]
         elif mode == "2":
             return codes[rel + codes[i]]
+        else:
+            raise Exception("Unknown get mode {}".format(mode))
 
     def mode_set(i, val, mode):
         if mode == "0":
             codes[codes[i]] = val
-        elif mode == "1":
-            codes[i] = val
         elif mode == "2":
             codes[rel + codes[i]] = val
+        else:
+            raise Exception("Unknown set mode {}".format(mode))
 
     while True:
         code = "{:0>5}".format(codes[idx])
@@ -101,8 +103,7 @@ def run(codes, inq, outq):
             rel += a
             idx += 2
         else:
-            print("Unknown op:", op)
-            return
+            raise Exception("Unknown opcode {}".format(op))
 
 
 inq, outq = queue.Queue(), queue.Queue()
