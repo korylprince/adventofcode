@@ -22,14 +22,14 @@ class Computer:
             return idx
         if mode == Computer.MODE_RELATIVE:
             idx += self.rel
-        if idx < len(self.program) - 1:
+        if idx < len(self.program):
             return self.program[idx]
         return self.memory[idx]
 
     def set(self, idx, val, mode=MODE_POSITION):
         if mode == Computer.MODE_RELATIVE:
             idx += self.rel
-        if idx < len(self.program) - 1:
+        if idx < len(self.program):
             self.program[idx] = val
             return
         self.memory[idx] = val
