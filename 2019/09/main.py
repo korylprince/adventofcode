@@ -1,122 +1,141 @@
-import itertools
-from collections import deque
-import queue
-import threading
+from collections import defaultdict
 
-def get_codes():
-    with open("./input.txt") as f:
-        return [int(i.strip()) for i in f.read().strip().split(",")]
+class Computer:
+    MODE_POSITION = 0
+    MODE_IMMEDIATE = 1
+    MODE_RELATIVE = 2
 
-class InfiniteList(list):
-    def __getitem__(self, key):
-        if key >= len(self):
-            self += [0] * (key - (len(self) - 1))
-        return super().__getitem__(key)
+    _opcodes = {}
 
-    def __setitem__(self, key, val):
-        if key >= len(self):
-            self += [0] * (key - (len(self) - 1))
-        return super().__setitem__(key, val)
+    def __init__(self, code_file, input_callback=None):
+        with open(code_file) as f:
+            self.program = [int(code.strip()) for code in f.read().strip().split(",")]
+        self.memory = defaultdict(lambda:0)
+        self.pc = 0
+        self.rel = 0
+        self.halted = False
+        self.output = None
+        self.input_callback = input_callback
 
+    def get(self, idx, mode=MODE_POSITION):
+        if mode == Computer.MODE_IMMEDIATE:
+            return idx
+        if mode == Computer.MODE_RELATIVE:
+            idx += self.rel
+        if idx < len(self.program) - 1:
+            return self.program[idx]
+        return self.memory[idx]
 
-def run(codes, inq, outq):
-    codes = InfiniteList(codes)
-    idx = 0
-    rel = 0
-
-    def mode_get(i, mode):
-        if mode == "0":
-            return codes[codes[i]]
-        elif mode == "1":
-            return codes[i]
-        elif mode == "2":
-            return codes[rel + codes[i]]
-        else:
-            raise Exception("Unknown get mode {}".format(mode))
-
-    def mode_set(i, val, mode):
-        if mode == "0":
-            codes[codes[i]] = val
-        elif mode == "2":
-            codes[rel + codes[i]] = val
-        else:
-            raise Exception("Unknown set mode {}".format(mode))
-
-    while True:
-        code = "{:0>5}".format(codes[idx])
-        op = int(code[3:])
-        # halt
-        if op == 99:
+    def set(self, idx, val, mode=MODE_POSITION):
+        if mode == Computer.MODE_RELATIVE:
+            idx += self.rel
+        if idx < len(self.program) - 1:
+            self.program[idx] = val
             return
-        # add
-        elif op == 1:
-            a = mode_get(idx+1, code[2])
-            b = mode_get(idx+2, code[1])
-            mode_set(idx + 3, a + b, code[0])
-            idx += 4
-        # multiply
-        elif op == 2:
-            a = mode_get(idx+1, code[2])
-            b = mode_get(idx+2, code[1])
-            mode_set(idx + 3, a * b, code[0])
-            idx += 4
-        # input
-        elif op == 3:
-            mode_set(idx + 1, inq.get(), code[2])
-            idx += 2
-        # output
-        elif op == 4:
-            a = mode_get(idx+1, code[2])
-            outq.put(a)
-            idx += 2
-        # jump if true
-        elif op == 5:
-            a = mode_get(idx+1, code[2])
-            b = mode_get(idx+2, code[1])
-            if a == 1:
-                idx = b
-            else:
-                idx += 3
-        # jump if false
-        elif op == 6:
-            a = mode_get(idx+1, code[2])
-            b = mode_get(idx+2, code[1])
-            if a == 0:
-                idx = b
-            else:
-                idx += 3
-        # jump if less than
-        elif op == 7:
-            a = mode_get(idx+1, code[2])
-            b = mode_get(idx+2, code[1])
-            mode_set(idx + 3, int(a < b), code[0])
-            idx += 4
-        # jump if eq
-        elif op == 8:
-            a = mode_get(idx+1, code[2])
-            b = mode_get(idx+2, code[1])
-            mode_set(idx + 3, int(a == b), code[0])
-            idx += 4
-        # add relative
-        elif op == 9:
-            a = mode_get(idx+1, code[2])
-            rel += a
-            idx += 2
+        self.memory[idx] = val
+
+    def _op_halt(self):
+        self.halted = True
+
+    _opcodes[99] = _op_halt
+    _op_halt.arguments = 0
+
+
+    def _op_add(self, a, b, target):
+        self.set(target[0], self.get(*a) + self.get(*b), target[1])
+        self.pc += 4
+
+    _opcodes[1] = _op_add
+    _op_add.arguments = 3
+
+
+    def _op_multiply(self, a, b, target):
+        self.set(target[0], self.get(*a) * self.get(*b), target[1])
+        self.pc += 4
+
+    _opcodes[2] = _op_multiply
+    _op_multiply.arguments = 3
+
+
+    def _op_input(self, target):
+        inp = self.input_callback(self)
+        self.set(target[0], inp, target[1])
+        self.pc += 2
+
+    _opcodes[3] = _op_input
+    _op_input.arguments = 1
+
+
+    def _op_output(self, a):
+        self.output = self.get(*a)
+        self.pc += 2
+
+    _opcodes[4] = _op_output
+    _op_output.arguments = 1
+
+
+    def _op_jump_if_true(self, a, b):
+        if self.get(*a) != 0:
+            self.pc = self.get(*b)
         else:
-            raise Exception("Unknown opcode {}".format(op))
+            self.pc += 3
+
+    _opcodes[5] = _op_jump_if_true
+    _op_jump_if_true.arguments = 2
 
 
-inq, outq = queue.Queue(), queue.Queue()
-a = threading.Thread(target=run, args=(get_codes(), inq, outq))
-a.start()
-inq.put(1)
-a.join()
-while not outq.empty():
-    print("Answer 1:", outq.get())
+    def _op_jump_if_false(self, a, b):
+        if self.get(*a) == 0:
+            self.pc = self.get(*b)
+        else:
+            self.pc += 3
 
-a = threading.Thread(target=run, args=(get_codes(), inq, outq))
-a.start()
-inq.put(2)
-a.join()
-while not outq.empty():
-    print("Answer 2:", outq.get())
+    _opcodes[6] = _op_jump_if_false
+    _op_jump_if_false.arguments = 2
+
+    def _op_less_than(self, a, b, target):
+        self.set(target[0], int(self.get(*a) < self.get(*b)), target[1])
+        self.pc += 4
+
+    _opcodes[7] = _op_less_than
+    _op_less_than.arguments = 3
+
+
+    def _op_equals(self, a, b, target):
+        self.set(target[0], int(self.get(*a) == self.get(*b)), target[1])
+        self.pc += 4
+
+    _opcodes[8] = _op_equals
+    _op_equals.arguments = 3
+
+
+    def _op_add_relative(self, a):
+        self.rel += self.get(*a)
+        self.pc += 2
+
+    _opcodes[9] = _op_add_relative
+    _op_add_relative.arguments = 1
+
+
+    def run(self):
+        while True:
+            if self.halted:
+                return
+            if self.output is not None:
+                out = self.output
+                self.output = None
+                return out
+
+            code = "{:0>5}".format(self.get(self.pc))
+            op = self._opcodes[int(code[3:])]
+            arguments = []
+            for i in range(self.pc + 1, self.pc + 1 + op.arguments):
+                arguments.append(self.get(i))
+            arguments = zip(arguments, [int(m) for m in reversed(code)][2:2+op.arguments])
+            op(self, *arguments)
+
+comp = Computer("./input.txt", lambda c:1)
+print("Answer 1:", comp.run())
+
+comp = Computer("./input.txt", lambda c:2)
+print("Answer 1:", comp.run())
