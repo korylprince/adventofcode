@@ -1,6 +1,8 @@
 import re
 from collections import deque
 
+import networkx as nx
+
 class Computer:
     def __init__(self, code_file=None, instructions=None):
         if instructions is None:
@@ -72,6 +74,34 @@ def dfs(instructions):
         elif ins == "acc":
             q.append((ptr + 1, accum + val, changed))
 
+
+def graph(instructions):
+    G = nx.DiGraph()
+    start = 0
+    target = len(instructions)
+    for i, (ins, val) in enumerate(instructions):
+        if ins == "jmp":
+            G.add_edge(i, i + val, weight=0)
+        elif ins == "acc":
+            G.add_edge(i, i + 1, weight=val)
+        elif ins == "nop":
+            G.add_edge(i, i + 1, weight=0)
+
+    starting = {node for node in nx.dfs_tree(G, start).nodes()}
+    winning = {edge[0] for edge in nx.edge_dfs(G, target, orientation="reverse")}
+    for i in starting:
+        ins, val = instructions[i]
+        if ins == "nop" and i + val in winning:
+            G.add_edge(i, i+val, weight=0)
+            break
+        elif ins == "jmp" and i + 1 in winning:
+            G.add_edge(i, i+1, weight=0)
+            break
+
+    return nx.shortest_path_length(G, start, target, weight="weight")
+
+
 comp = Computer("./input.txt")
 print("Answer 1:", comp.run()[1])
 print("Answer 2:", dfs(comp.instructions))
+print("Answer 2 (graph):", graph(comp.instructions))
