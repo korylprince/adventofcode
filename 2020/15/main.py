@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 with open("./input.txt") as f:
     nums = [int(n.strip()) for n in f.read().strip().split(",")]
 
