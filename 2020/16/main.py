@@ -1,4 +1,5 @@
 import re
+import heapq
 
 import numpy as np
 
@@ -44,3 +45,18 @@ def solve():
     return final
 
 print("Answer 2:", np.prod([ticket[v] for name, v in solve().items() if "departure" in name]))
+
+def astar():
+    target = len(fields)
+    precompute = {name: {i for i, f in enumerate(fields) if len(f.difference(rule)) == 0} for name, rule in valid.items()}
+    h = [(len(idxs)-1, [name], [i]) for name, idxs in precompute.items() for i in idxs]
+    heapq.heapify(h)
+    while True:
+        prio, names, idxs = heapq.heappop(h)
+        if len(names) == target:
+            return dict(zip(names, idxs))
+        next = [(len(_idxs.difference(set(idxs)))-1, name, i) for name, _idxs in precompute.items() for i in _idxs if name not in names]
+        for p, n, i in next:
+            heapq.heappush(h, (prio+p, names+[n], idxs + [i]))
+
+print("Answer 2:", np.prod([ticket[v] for name, v in astar().items() if "departure" in name]))
