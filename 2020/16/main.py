@@ -2,6 +2,8 @@ import re
 import heapq
 
 import numpy as np
+import networkx as nx
+from networkx.algorithms import bipartite as bip
 
 ruleRegexp = r"^((?:\w ?)+): (\d+)-(\d+) or (\d+)-(\d+)$"
 
@@ -60,3 +62,12 @@ def astar():
             heapq.heappush(h, (prio+p, names+[n], idxs + [i]))
 
 print("Answer 2:", np.prod([ticket[v] for name, v in astar().items() if "departure" in name]))
+
+def graph():
+    G = nx.Graph()
+    for name, flds in {name: {i for i, f in enumerate(fields) if len(f.difference(rule)) == 0} for name, rule in valid.items()}.items():
+        for f in flds:
+            G.add_edge(name, f)
+    return bip.maximum_matching(G)
+
+print("Answer 2:", np.prod([ticket[v] for name, v in graph().items() if isinstance(name, str) and "departure" in name]))
