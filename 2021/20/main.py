@@ -2,9 +2,9 @@ from collections import defaultdict
 
 with open("./input.txt") as f:
     alg, img = f.read().strip().split("\n\n")
-    alg = list(alg.strip())
+    alg = [1 if c == "#" else 0 for c in alg.strip()]
     # (x, y) -> pixel
-    img = defaultdict(lambda: ".", {(x, y): c for y, row in enumerate(img.strip().splitlines()) for x, c in enumerate(row.strip())})
+    img = defaultdict(lambda: 0, {(x, y): 1 if c == "#" else 0 for y, row in enumerate(img.strip().splitlines()) for x, c in enumerate(row.strip())})
 
 d = (
     (-1, -1), (0, -1), (1, -1),
@@ -28,11 +28,11 @@ def grow(img, default):
 def p2num(img, x, y):
     n = 0 
     for idx, (dx, dy) in enumerate(d):
-        if img[(x+dx, y+dy)] == "#":
-            n += 1 << (len(d) - 1 - idx)
+        if img[(x+dx, y+dy)]:
+            n += 1 << (8 - idx)
     return n
 
-default = "."
+default = 0
 
 for i in range(2):
     img2 = defaultdict(lambda: default)
@@ -41,9 +41,9 @@ for i in range(2):
     for x, y in keys:
         img2[(x, y)] = alg[p2num(img, x, y)]
     img = img2
-    default = "#" if default == "." else "."
+    default = 0 if default else 1
 
-print("Answer 1:", len([v for v in img.values() if v == "#"]))
+print("Answer 1:", sum(img.values()))
 
 for i in range(48):
     img2 = defaultdict(lambda: default)
@@ -52,6 +52,6 @@ for i in range(48):
     for x, y in keys:
         img2[(x, y)] = alg[p2num(img, x, y)]
     img = img2
-    default = "#" if default == "." else "."
+    default = 0 if default else 1
 
-print("Answer 2:", len([v for v in img.values() if v == "#"]))
+print("Answer 2:", sum(img.values()))
