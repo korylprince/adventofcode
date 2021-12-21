@@ -6,11 +6,6 @@ with open("./input.txt") as f:
     # (x, y) -> pixel
     img = defaultdict(lambda: 0, {(x, y): 1 if c == "#" else 0 for y, row in enumerate(img.strip().splitlines()) for x, c in enumerate(row.strip())})
 
-d = (
-    (-1, -1), (0, -1), (1, -1),
-    (-1, 0), (0, 0), (1, 0),
-    (-1, 1), (0, 1), (1, 1),
-)
 
 def grow(img, default):
     x1 = min([x for x, y in img.keys()])
@@ -25,13 +20,6 @@ def grow(img, default):
         img[(x1-1, y)] = default
         img[(x2+1, y)] = default
 
-def p2num(img, x, y):
-    n = 0 
-    for idx, (dx, dy) in enumerate(d):
-        if img[(x+dx, y+dy)]:
-            n += 1 << (8 - idx)
-    return n
-
 default = 0
 
 for i in range(2):
@@ -39,7 +27,10 @@ for i in range(2):
     grow(img, default)
     keys = list(img.keys())
     for x, y in keys:
-        img2[(x, y)] = alg[p2num(img, x, y)]
+        idx = ((img[(x-1, y-1)] << 8) + (img[(x, y-1)] << 7) + (img[(x+1, y-1)] << 6) +
+            (img[(x-1, y)] << 5) + (img[(x, y)] << 4) + (img[(x+1, y)] << 3) +
+            (img[(x-1, y+1)] << 2) + (img[(x, y+1)] << 1) + img[(x+1, y+1)])
+        img2[(x, y)] = alg[idx]
     img = img2
     default = 0 if default else 1
 
@@ -50,7 +41,10 @@ for i in range(48):
     grow(img, default)
     keys = list(img.keys())
     for x, y in keys:
-        img2[(x, y)] = alg[p2num(img, x, y)]
+        idx = ((img[(x-1, y-1)] << 8) + (img[(x, y-1)] << 7) + (img[(x+1, y-1)] << 6) +
+            (img[(x-1, y)] << 5) + (img[(x, y)] << 4) + (img[(x+1, y)] << 3) +
+            (img[(x-1, y+1)] << 2) + (img[(x, y+1)] << 1) + img[(x+1, y+1)])
+        img2[(x, y)] = alg[idx]
     img = img2
     default = 0 if default else 1
 
