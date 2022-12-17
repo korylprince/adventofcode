@@ -17,38 +17,33 @@ for v, r, edges in lines:
         G.add_edge(v, v2)
 
 shortpathlen = {v: lens for v, lens in nx.all_pairs_shortest_path_length(G)}
+bitfield = {v: 2**idx for idx, v in enumerate(list(worthit.keys()) + ["AA"])}
+shortpath = {b1|b2: shortpathlen[v1][v2] for v1, b1 in bitfield.items() for v2, b2 in bitfield.items() if v1 != v2}
+worth = {bitfield[v]: r for v, r in worthit.items()}
 
-def dfs(target, pres, minute, off, node):
+
+def dfs(target, pres, minute, on, node):
     max = pres
-    for v, r, l in [(v, r, shortpathlen[node][v] + 1) for v, r in worthit.items() if v in off]:
+    for v, r, l in [(v, r, shortpath[node | v] + 1) for v, r in worth.items() if v & on == 0]:
         if minute + l > target:
             continue
-        off.remove(v)
-        next = dfs(target, pres + (target-minute-l)*r, minute + l, off, v)
-        if next > max:
+        if (next := dfs(target, pres + (target-minute-l)*r, minute + l, on | v, v)) > max:
             max = next
-        off.add(v)
     return max
 
-part1 = dfs(30, 0, 0, set(worthit.keys()), "AA")
+part1 = dfs(30, 0, 0, 0, bitfield["AA"])
 print("Answer 1:", part1)
 
-bitfield = {v: 2**idx for idx, v in enumerate(worthit.keys())}
 
-def tobitfield(path):
-    return sum(bitfield[p] for p in path)
-
-def dfspaths(target, pres, minute, off, node, path):
-    paths = [(pres, tobitfield(path))]
-    for v, r, l in [(v, r, shortpathlen[node][v] + 1) for v, r in worthit.items() if v in off]:
+def dfspaths(target, pres, minute, on, node, path):
+    paths = [(pres, path)]
+    for v, r, l in [(v, r, shortpath[node | v] + 1) for v, r in worth.items() if v & on == 0]:
         if minute + l > target:
             continue
-        off.remove(v)
-        paths += dfspaths(target, pres + (target-minute-l)*r, minute + l, off, v, path + (v,))
-        off.add(v)
+        paths += dfspaths(target, pres + (target-minute-l)*r, minute + l, on | v, v, path | v)
     return paths
 
-allpaths = sorted(dfspaths(26, 0, 0, set(worthit.keys()), "AA", tuple()), reverse=True)
+allpaths = sorted(dfspaths(26, 0, 0, 0, bitfield["AA"], 0), reverse=True)
 allpaths = [p for p in allpaths if p[0] > part1//2]
 cross = [s1+s2 for (s1, p1), (s2, p2) in combinations(allpaths, 2) if p1&p2 == 0]
 print("Answer 2:", max(cross))
