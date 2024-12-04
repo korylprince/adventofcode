@@ -1,3 +1,5 @@
 *.swp
 __pycache__
 tags
+input.txt
+input2.txt
